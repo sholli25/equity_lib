@@ -1,6 +1,21 @@
 import pandas as pd
 import numpy as np
 
+def import_directory(path):
+    import glob
+
+    path = r+path # use your path
+    all_files = glob.glob(path + "/*.xlsx")
+
+    li = []
+
+    for filename in all_files:
+        df = pd.read_excel(filename, index_col=None, header=0)
+        li.append(df)
+
+    return pd.concat(li, axis=0, ignore_index=True)
+
+
 def get_exclusion_reasons():
     list_1=['Duplicate','Invalid Award Amount',
     'Less than 1000','No Vendor','Null Award Amount',
