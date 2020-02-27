@@ -406,7 +406,7 @@ def get_number_of_instances(df,drop_dups,primary_key,two_cols):
     name_counts = df[primary_key].value_counts().rename('name_of_instances')
 
     dup_names = df.merge(name_counts.to_frame(),
-                                        left_on=name_column,
+                                        left_on=primary_key,
                                         right_index=True)
 
     # dup_names = dup_names[dup_names['number_of_instances']>1]
@@ -507,6 +507,16 @@ def consolidate_values(consolidate_col,primary_key,df,get_unique_values,drop_dup
         df[unique_column_name].replace('nan',np.nan,inplace=True)
 
     return df
+
+# Convert float to string
+def float_to_string(string):
+    string = str(string)
+    if string == 'nan':
+        string = np.nan
+    else:
+        string = string.split('.')[0]
+            
+    return string
 
 
 # Convert NAICS to NIGP
