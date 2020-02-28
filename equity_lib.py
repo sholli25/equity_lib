@@ -898,5 +898,7 @@ def phone_format(n):
 
 
 # Pivot Table
-def pivot_sum(df,index_col,values_col,)
-    return pd.pivot_table(po,index=['Po Supplier Name'], values='ID', aggfunc=np.sum).to_records()
+def pivot_sum(df,index_col,values_col):
+    pd.set_option('display.float_format', lambda x: '%.2f' % x)
+    return pd.DataFrame(pd.pivot_table(df,index=index_col, values=values_col, 
+    aggfunc=np.sum).to_records()).sort_values(by=values_col,ascending=False)
