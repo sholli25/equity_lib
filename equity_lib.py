@@ -113,9 +113,10 @@ def percentFileMatched(database, file, shared_column, filter_column):
 
 
 # Exporting Excel Files
-def export_excel(df, path):
+def export_excel(df_list, sheet_names, path):
     writer = pd.ExcelWriter(path, engine='xlsxwriter')
-    df.to_excel(writer, sheet_name='Sheet1', index=False)
+    for i in range(len(df_list)):
+        df_list[i].to_excel(writer, sheet_name=sheet_names[i], index=False)
     writer.save()
 
 
