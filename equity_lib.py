@@ -430,7 +430,7 @@ def resmooth(smoothed, unsmoothed, smoothing_file_path):
 # Mark Duplicates
 def mark_duplicates(df, column_list):
     df['Duplicate'] = df.duplicated(subset=column_list)
-    df.loc[df['Duplicate'] == True, 'MFD'] = 'Dup by:' + ','.join(column_list)
+    df.loc[(df['Duplicate'] == True)&(df['MFD'].isnull()), 'MFD'] = 'Dup by:' + ','.join(column_list)
     df.drop(['Duplicate'], axis=1, inplace=True)
     return df
 
