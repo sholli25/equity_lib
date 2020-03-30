@@ -925,12 +925,17 @@ def pandas_profiler(df, df_name, path):
 
 
 # Zip Code Merge
-def zip_code_merge(df,path_to_zip_db):
-    zipcodes = pd.read_excel(path_to_zip_db)
+def zip_code_merge(df,zips_are_floats,path_to_zip_db):
 
+    # Cleaning the quirks of the specific Zip DB we use
+    zipcodes = pd.read_excel(path_to_zip_db)
     zipcodes.rename(columns={'zip': 'Zip', 'county': 'County', 'state': 'State Merged'}, inplace=True)
     zipcodes['Zip'] = zipcodes['Zip'].astype(str)
     zipcodes = zipcodes[['Zip', 'County', 'State Merged']].copy()
+
+    # Handling scenario when pandas perceives Zip as float
+    if zips_are_floats:
+        df['Zip'] = df['Zip'].apply(float_to_string)
 
     def clean_zip(string):
         string = str(string)[:5]
