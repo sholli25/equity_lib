@@ -947,8 +947,7 @@ def zip_code_merge(df,path_to_zip_db):
     df['Zip'] = df['Zip'].apply(clean_zip)
     zipcodes['Zip'] = zipcodes['Zip'].apply(clean_zip)
     df = df.merge(zipcodes, on='Zip', how='left')
-    df['State'] = df['State Merged']
-    df[df['County'].isnull()]['Zip'].value_counts()
+    print(df[df['County'].isnull()]['Zip'].value_counts())
 
     return df
 
