@@ -925,8 +925,8 @@ def pandas_profiler(df, df_name, path):
 
 
 # Zip Code Merge
-def zip_code_merge(df):
-    zipcodes = pd.read_excel('../zip_code_database-171005.xls')
+def zip_code_merge(df,path_to_zip_db):
+    zipcodes = pd.read_excel(path_to_zip_db)
 
     zipcodes.rename(columns={'zip': 'Zip', 'county': 'County', 'state': 'State Merged'}, inplace=True)
     zipcodes['Zip'] = zipcodes['Zip'].astype(str)
