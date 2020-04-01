@@ -37,56 +37,65 @@ def get_exclusion_reasons():
 
     print(list_1)
 
+# Firm Name Cleaning Used https://medium.com/@isma3il/supplier-names-normalization-part1-66c91bb29fc3
+# for inspiration, then tweaked
+def clean_names_frame(df,name_column):
+    # Renaming business name column
+    df.rename(columns={name_column:'Supplier_Name'},inplace=True)
 
-# Firm Name Cleaning
-def clean_names_frame(df):
-    # https://medium.com/@isma3il/supplier-names-normalization-part1-66c91bb29fc3
     # Libraries
-    import pandas as pd
     from cleanco import cleanco
     # Import supplier names to dataframe
-    df = pd.read_excel('EMEA-spend.xlsx', names=['Supplier_Name'], usecols=[5])
     # ----------------------------------------
     # Convert to uppercase
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.upper()
+    df['Supplier_Name_Normalized'] = df['Supplier_Name'].apply(lambda x: str(x).upper())
     # Remove commas
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.replace(',', '')
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace(',', ''))
+    # Remove apostrophe
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace("''", ''))
     # Remove hyphens
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.replace(' - ', ' ')
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace(' - ', ' '))
     # Remove text between parenthesis
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.replace(r"\(.*\)", "")
-    #
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.replace(' AND ', ' & ')
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace(r"\(.*\)", ""))
+    # Replacing AND with symbol
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace(' AND ', ' & '))
     # Remove spaces in the begining/end
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.strip()
-    # Encode
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.encode('utf-8')
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).strip())
     # Remove business entities extensions (1)
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.apply(
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(
         lambda x: cleanco(x).clean_name() if type(x) == str else x)
     # Remove dots
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.replace('.', '')
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace('.', ''))
     # Remove business entities extensions (2) - after removing the dots
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.apply(
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(
         lambda x: cleanco(x).clean_name() if type(x) == str else x)
     # Specific Polish to companies
-    df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.str.replace('SP ZOO', '')
-    # Remove European country names from supplier names
-    countries = ['ALBANIA', 'ANDORRA', 'AUSTRIA', 'AZERBAIJAN', 'BELARUS', 'BELGIUM', 'BOSNIA AND HERZEGOVINA',
-                 'BULGARIA', 'CROATIA', 'CYPRUS', 'CZECH REPUBLIC', 'DENMARK', 'ESTONIA', 'FAROE ISLANDS', 'FINLAND',
-                 'FRANCE', 'BRITTANY', 'GERMANY', 'DEUTSCHLAND', 'GREECE', 'GUERNSEY (CHANNEL ISLANDS)', 'HUNGARY',
-                 'ICELAND', 'IRELAND', 'ISLE OF MAN', 'ITALY', 'JERSEY (CHANNEL ISLANDS)', 'LATVIA', 'LIECHTENSTEIN',
-                 'LITHUANIA', 'LUXEMBOURG', 'MACEDONIA', 'MALTA', 'MOLDOVA', 'MONACO', 'MONTENEGRO', 'NETHERLANDS',
-                 'NEDERLAND', 'HOLLAND', 'NORWAY', 'POLAND', 'POLSKA', 'PORTUGAL', 'ROMANIA', 'RUSSIA', 'SAN MARINO',
-                 'SERBIA', 'SLOVAKIA', 'SLOVENIA', 'SPAIN', 'SWEDEN', 'SWITZERLAND', 'TURKEY', 'UNITED KINGDOM', 'UK',
-                 'SCOTLAND', 'WALES', 'CORNWALL', 'NORTHERN IRELAND', 'UKRAINE', 'VATICAN CITY']
-    for country in countries:
-        df.Supplier_Name_Normalized = df.Supplier_Name_Normalized.apply(
-            lambda x: x.replace(country, '') if (type(x) == str and x.endswith(country)) else x)
+    df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace('SP ZOO', ''))
+
     # Count unique values
     print('Supplier names:', df.Supplier_Name.nunique())
-    print('Normalized names:', df.Supplier_Name_Normalized.nunique())
+    print('Normalized names:', df['Supplier_Name_Normalized'].nunique())
 
+
+# A narrowly defined algorithm meant to extract values from a PDF with poor table design
+# This crawls through the frame and pulls out data that is supposed to be in one row
+# But because of the table converted it gets stored in a lower row with a separate index
+# This problem originally solved in the Prism Vendor file
+def extract_codes(df):
+    last_filled_index = 0
+    for row in df.itertuples(index=True,name='Pandas'):
+        name = str(getattr(row,'_1'))
+        nigp = str(getattr(row,'_2')).lstrip().rstrip()
+        if(name!='nan'):
+            last_filled_index = getattr(row,'Index')
+        else:
+            pass
+        if(nigp[0].isdigit()):
+            if(df.at[last_filled_index,'NIGP String']!=''):
+                old_value = df.at[last_filled_index,'NIGP String']
+                df.at[last_filled_index,'NIGP String'] = old_value+';'+nigp
+            else:
+                df.at[last_filled_index,'NIGP String'] = nigp
 
 # This function determines what percent of a file matches with a database, making sure all values are unique
 def percentFileMatched(database, file, shared_column, filter_column):
