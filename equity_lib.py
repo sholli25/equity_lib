@@ -788,11 +788,15 @@ def clean_phone(string):
 
 
 # Data Cleaning Function data cleaner loc statement cleaning zip code corrector
-def data_cleaner(df, df_name, messy_column_name, new_column):
-    for i in df[messy_column_name].unique():
+def data_cleaner(df, df_name, messy_column_name, new_column, use_custom_array=False,custom_array=False):
+    if use_custom_array:
+        array = custom_array
+    else:
+        array = df[messy_column_name].unique()
+
+    for i in array:
         print(df_name + '.loc[' + df_name + '[\'' + messy_column_name + '\']==\'' + str(
             i) + '\',\'' + new_column + '\'] = \'\'')
-
 
 # Clean Cleaning Names
 def cleanest_names(df, name_column, no_new_column):
