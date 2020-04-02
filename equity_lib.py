@@ -546,7 +546,7 @@ def get_unique(string):
 
 
 # Converting Force forcing multiple rows to a single row and preserving unique data collapse condense consolidate
-def consolidate_values(consolidate_col, primary_key, df, get_unique_values, drop_dup):
+def consolidate_values(consolidate_col, primary_key, df, get_unique_values=True, drop_dup=False):
     df[consolidate_col] = df[consolidate_col].astype(str)
     consolidated_values = df.groupby(primary_key)[consolidate_col].apply(';'.join).reset_index()
     consolidated_values.rename(columns={consolidate_col: 'All ' + consolidate_col + 's'}, inplace=True)
@@ -566,6 +566,8 @@ def consolidate_values(consolidate_col, primary_key, df, get_unique_values, drop
 
         df[unique_column_name] = df[created_column_name].apply(get_unique)
         df[unique_column_name].replace('nan', np.nan, inplace=True)
+        # Removing the created column which is arbitrary with unique option passed
+        df.drop([created_column_name],axis=1,inplace=True)
 
     return df
 
