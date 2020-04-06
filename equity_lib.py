@@ -980,6 +980,38 @@ def replace_column(df, nf, shared_col, old_col, new_col):
     df.loc[df[new_col].notnull(), old_col] = df[new_col]
     df = df.drop(labels=[new_col], axis=1)
 
+# Fuzzy String Matching
+# Best practice is to pass a lookup frame with the relevant columns you are matching for
+def fuzzy_search(df,lookup_frame,query_field):
+    from fuzzywuzzy import fuzz
+    from fuzzywuzzy import process
+
+    matches = pd.DataFrame(columns=[query_field,'Match Name','Similarity Score'])
+
+    unique_names_to_match=df[query_field].unique()
+    unique_options = lookup_frame[query_field].unique()
+
+    from tqdm import tqdm
+    from time import sleep # To properly update tqdm instead of creating new lines
+
+    for i in tqdm(range(len(unique_names_to_match))):
+        # For tqdm
+        sleep(0.01)
+
+        ratio_tuple = process.extractOne(unique_names_to_match[i],unique_options)
+        match_name = ratio_tuple[0]
+        similarity_score = int(ratio_tuple[1])
+
+        # The 100 scores would have been picked up on the merge of normalized names
+        if(similarity_score==100):
+            pass
+        else:
+            matches.loc[len(matches)] = [unique_names_to_match[i],match_name,similarity_score]
+
+    # Bring in the ethnicities column
+    lookup_frame.rename(columns={query_field:'Match Name'},inplace=True)
+    matches = matches.merge(lookup_frame,on='Match Name',how='left')
+    return matches
 
 # Format Phone Numbers
 def phone_format(n):
