@@ -980,6 +980,16 @@ def replace_column(df, nf, shared_col, old_col, new_col):
     df.loc[df[new_col].notnull(), old_col] = df[new_col]
     df = df.drop(labels=[new_col], axis=1)
 
+# Mark Final MFD
+def mark_final_mfd(df):
+    df.loc[(df['Algorithmic MFD'].notnull())|
+           (df['Manual MFD'].notnull())|
+           (df['Vendor MFD'].notnull()),'Final MFD'] = 'Exclude'
+
+    print("Total Exclusions: " + str(len(df[df['Final MFD'].notnull()])))
+
+    return df
+
 # Fuzzy String Matching
 # Best practice is to pass a lookup frame with the relevant columns you are matching for
 def fuzzy_search(df,lookup_frame,query_field):
