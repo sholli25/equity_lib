@@ -1012,16 +1012,14 @@ def fuzzy_search(df,lookup_frame,query_field):
         match_name = ratio_tuple[0]
         similarity_score = int(ratio_tuple[1])
 
-        # The 100 scores would have been picked up on the merge of normalized names
-        if(similarity_score==100):
-            pass
-        else:
-            matches.loc[len(matches)] = [unique_names_to_match[i],match_name,similarity_score]
+        # Creating new row in dataframe
+        matches.loc[len(matches)] = [unique_names_to_match[i],match_name,similarity_score]
 
     # Bring in the ethnicities column
-    lookup_frame.rename(columns={query_field:'Match Name'},inplace=True)
-    matches = matches.merge(lookup_frame,on='Match Name',how='left')
+    temp = lookup_frame.rename(columns={query_field:'Match Name'})
+    matches = matches.merge(temp,on='Match Name',how='left')
     return matches
+
 
 # Format Phone Numbers
 def phone_format(n):
