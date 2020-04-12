@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
 
-award_columns = ['index', 'Source', 'All Sources',
+def get_award_columns():
+    award_columns = ['index', 'Source', 'All Sources',
                  'Final MFD', 'Algorithmic MFD', 'Manual MFD', 'Vendor MFD',
                  'Status', 'Requisition Number', 'Contract Number', 'PO Number',
                  'Number of Instances', 'Date Column',
-                 'Award Date', 'Business Name', 'Smoothed Name', 'Amount Column', 'Award Amount',
+                 'Award Date', 'Business Name', 'Supplier_Name_Normalized', 'Amount Column', 'Award Amount',
                  'Department Name', 'Item Description 1', 'Item Description 2',
                  'Identifier Type 1', 'Identifier 1',
                  'Identifier Type 2', 'Identifier 2',
@@ -14,6 +15,7 @@ award_columns = ['index', 'Source', 'All Sources',
                  'Item Work Categorization Type', 'Potentially Exclude', 'Actually Exclude',
                  'Vendor Number', 'Address1', 'Address2', 'Zip']
 
+    print(award_columns)
 
 def import_directory(path):
     import glob
@@ -41,14 +43,14 @@ def get_exclusion_reasons():
 # for inspiration, then tweaked
 def clean_names_frame(df,name_column):
     # Renaming business name column
-    df.rename(columns={name_column:'Supplier_Name'},inplace=True)
+    # df.rename(columns={name_column:'Supplier_Name'},inplace=True)
 
     # Libraries
     from cleanco import cleanco
     # Import supplier names to dataframe
     # ----------------------------------------
     # Convert to uppercase
-    df['Supplier_Name_Normalized'] = df['Supplier_Name'].apply(lambda x: str(x).upper())
+    df['Supplier_Name_Normalized'] = df[name_column].apply(lambda x: str(x).upper())
     # Remove commas
     df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace(',', ''))
     # Remove apostrophe
@@ -1018,6 +1020,9 @@ def fuzzy_search(df,lookup_frame,query_field):
     # Bring in the ethnicities column
     temp = lookup_frame.rename(columns={query_field:'Match Name'})
     matches = matches.merge(temp,on='Match Name',how='left')
+
+    print('fuzzy_results[fuzzy_results[\'Similarity Score\']>=90].drop_duplicates(subset=[\'Supplier_Name_Normalized\',\'Match Name\']).sort_values(by=\'Similarity Score\',ascending=False)[[\'Supplier_Name_Normalized\',\'Match Name\',\'Similarity Score\']].drop([])')
+
     return matches
 
 
