@@ -75,7 +75,7 @@ def clean_names_frame(df,name_column):
     df['Supplier_Name_Normalized'] = df['Supplier_Name_Normalized'].apply(lambda x: str(x).replace('SP ZOO', ''))
 
     # Count unique values
-    print('Supplier names:', df.Supplier_Name.nunique())
+    print('Supplier names:', df[name_column].nunique())
     print('Normalized names:', df['Supplier_Name_Normalized'].nunique())
 
 
