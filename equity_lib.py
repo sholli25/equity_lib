@@ -17,6 +17,63 @@ def get_award_columns():
 
     print(award_columns)
 
+def convert_dollars(df,col_name):
+    """Converts comma separated dollars into floats """
+    df[col_name] = df[col_name].replace('[^.0-9]','',regex=True).astype(float)
+    return df
+
+def convert_date_string(df,col_name):
+    """Converts date strings into datetime format"""
+    df[col_name] = pd.to_datetime(df[col_name], infer_datetime_format=True)
+    return df
+
+def parse_email (s):
+    """Replace moves removes all spaces: beginning middle and end"""
+    s = s.replace()
+    """Parses a string as an email address, returning an (id, domain) pair."""
+    pattern = '''
+    ^
+    (?P<user>[a-zA-Z][\w.\-+]*)
+    @
+    (?P<domain>[\w.\-]*[a-zA-Z])
+    $
+    '''
+    matcher = re.compile(pattern, re.VERBOSE)
+    matches = matcher.match(s)
+    if matches:
+        return (matches.group('user'), matches.group('domain'))
+    raise ValueError("Bad email address")
+
+def parse_phone(s):
+    """
+    Any of the below patterns will be parsed as valid phone numbers
+    (404) 555-1212
+    (404) 5551212
+    404-555-1212
+    404-5551212
+    404555-1212
+    4045551212
+    """
+    pattern = '''
+    ^\s* # Leading spaces
+    (?P<areacode>
+    \d{3}-? # "xxx" or "xxx-"
+    | \(\d{3}\)\s* # OR "(xxx) "
+    )
+    (?P<prefix>\d{3}) # xxx
+    -? # Dash (optional)
+    (?P<suffix>\d{4}) # xxxx
+    \s*$ # Trailing spaces
+    '''
+    matcher = re.compile(pattern, re.VERBOSE)
+    matches = matcher.match(s)
+    if matches is None:
+        raise ValueError("'{}' is not in the right format.".format (s))
+    areacode = re.search('\d{3}', matches.group ('areacode')).group()
+    prefix = matches.group ('prefix')
+    suffix = matches.group ('suffix')
+    return (areacode, prefix, suffix)
+
 def import_directory(path):
     import glob
 
@@ -1025,6 +1082,45 @@ def fuzzy_search(df,lookup_frame,query_field):
 
     return matches
 
+# Fuzzy String Matching
+# Best practice is to pass a lookup frame with the relevant columns you are matching for
+def fuzzy_search_smoothing(df,lookup_frame,query_field):
+    from fuzzywuzzy import fuzz
+    from fuzzywuzzy import process
+
+    matches = pd.DataFrame(columns=[query_field,'Match Name','Similarity Score'])
+
+    unique_names_to_match=df[query_field].unique()
+    unique_options = lookup_frame[query_field].unique()
+
+    from tqdm import tqdm
+    from time import sleep # To properly update tqdm instead of creating new lines
+
+    for i in tqdm(range(len(unique_names_to_match))):
+        # For tqdm
+        sleep(0.01)
+
+        # Function returns a tuple of tuples containing the match and the similarity score
+        ratio_tuple = process.extract(unique_names_to_match[i],unique_options,limit=2)
+        #print(ratio_tuple)
+        #print(len(ratio_tuple))
+
+        # Because the returned number of tuples is more than one, a loop is required
+        for index in range(len(ratio_tuple)):
+            this_tuple = ratio_tuple[index]
+            match_name = this_tuple[0]
+            similarity_score = int(this_tuple[1])
+
+            # Creating new row in dataframe
+            matches.loc[len(matches)] = [unique_names_to_match[i],match_name,similarity_score]
+
+    # Bring in the ethnicities column
+    temp = lookup_frame.rename(columns={query_field:'Match Name'})
+    matches = matches.merge(temp,on='Match Name',how='left')
+
+    print('fuzzy_results[fuzzy_results[\'Similarity Score\']>=90].drop_duplicates(subset=[\'Supplier_Name_Normalized\',\'Match Name\']).sort_values(by=\'Similarity Score\',ascending=False)[[\'Supplier_Name_Normalized\',\'Match Name\',\'Similarity Score\']].drop([])')
+
+    return matches
 
 # Format Phone Numbers
 def phone_format(n):
