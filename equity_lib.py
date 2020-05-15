@@ -32,7 +32,7 @@ def parse_email (s):
     s = s.replace(' ','')
     """Parses a string as an email address, returning an (id, domain) pair."""
     pattern = '''
-(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
+    (?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
     '''
     matcher = re.compile(pattern, re.VERBOSE)
     matches = matcher.match(s)
@@ -995,39 +995,41 @@ def pandas_profiler(df, df_name, path):
     profile = pp.ProfileReport(df)
     profile.to_file(outputfile="../references/profiles/Profile_" + df_name + ".html")
 
+def apply_null_exclusions(df,exclusion_list,exclusion_column_name):
+    '''
+    Looping through the list of exclusions -> Exclusions must be based on a null value
+    If MFD is null, then it places the exclusion at the exact index
+    If MFD is not null, it appends the new exclusion to the list
+    '''
+    for i in range(len(exclusion_list)):
+        df.loc[(df[exclusion_list[i]].isnull())&(df[exclusion_column_name].notnull()),exclusion_column_name] = df[exclusion_column_name]+';No ' + exclusion_list[i] + ' data'
+        df.loc[(df[exclusion_list[i]].isnull())&(df[exclusion_column_name].isnull()),exclusion_column_name] = 'No ' + exclusion_list[i] + ' data'
+
+    return df
+
 
 # Zip Code Merge
-def zip_code_merge(df,zips_are_floats,path_to_zip_db):
+import re
+def zip_code_merge(df,path_to_zip_db):
 
-    # Cleaning the quirks of the specific Zip DB we use
-    zipcodes = pd.read_excel(path_to_zip_db)
-    zipcodes.rename(columns={'zip': 'Zip', 'county': 'County', 'state': 'State Merged'}, inplace=True)
-    zipcodes['Zip'] = zipcodes['Zip'].astype(str)
+    zipcodes = pd.read_excel(path_to_zip_db,dtype='object')
+    zipcodes.rename(columns={'State': 'State Merged'}, inplace=True)
     zipcodes = zipcodes[['Zip', 'County', 'State Merged']].copy()
 
-    # Handling scenario when pandas perceives Zip as float
-    if zips_are_floats:
-        df['Zip'] = df['Zip'].apply(float_to_string)
-
-    def clean_zip(string):
-        string = str(string)[:5]
-
-        if len(string) == 2:
-            return '000' + string
-        elif len(string) == 3:
-            return '00' + string
-        elif len(string) == 4:
-            return '0' + string
+    # Regular Expression for sequence of 5 digits
+    def clean_zip(zipcode):
+        x = re.findall('([\d]{5})', zipcode)
+        if not x:
+            return np.nan
         else:
+            string = ';'.join(x)
             return string
 
-    df['Zip'] = df['Zip'].apply(clean_zip)
-    zipcodes['Zip'] = zipcodes['Zip'].apply(clean_zip)
+    df['Zip'] = df['Zip'].astype(str).apply(clean_zip)
     df = df.merge(zipcodes, on='Zip', how='left')
     print(df[df['County'].isnull()]['Zip'].value_counts())
 
     return df
-
 
 # Merging on shared column updating old values with new values
 def replace_column(df, nf, shared_col, old_col, new_col):
