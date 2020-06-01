@@ -29,7 +29,7 @@ def convert_date_string(df,col_name):
 
 def parse_email (s):
     """Replace moves removes all spaces: beginning middle and end"""
-    s = s.replace(' ','')
+    s = s.replace(' ','').lower()
     """Parses a string as an email address, returning an (id, domain) pair."""
     pattern = '''
     (?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
@@ -66,11 +66,78 @@ def parse_phone(s):
     matcher = re.compile(pattern, re.VERBOSE)
     matches = matcher.match(s)
     if matches is None:
-        raise ValueError("'{}' is not in the right format.".format (s))
-    areacode = re.search('\d{3}', matches.group ('areacode')).group()
-    prefix = matches.group ('prefix')
-    suffix = matches.group ('suffix')
-    return (areacode, prefix, suffix)
+        print(s)
+        return s
+    else:
+        areacode = re.search('\d{3}', matches.group ('areacode')).group()
+        prefix = matches.group ('prefix')
+        suffix = matches.group ('suffix')
+        return areacode+'-'+prefix+'-'+suffix
+
+def parse_zip(s):
+    s = s.strip()
+    """
+    Any of the below patterns will be parsed as valid zip codes
+    https://stackoverflow.com/questions/2577236/regex-for-zip-code
+    12345
+    12345-6789
+    12345 1234
+    123451234
+    """
+    pattern = '''
+     ^\d{5}(?:[-\s]?\d{4})?$
+    '''
+    matcher = re.compile(pattern, re.VERBOSE)
+    matches = matcher.match(s)
+    if matches:
+        return (matches.group(0))
+    else:
+        print(s)
+        return np.nan
+
+def clean_zip_codes(df,df_name,zip_column):
+    df[zip_column] = df[zip_column].astype(str)
+    '''
+    This function parses all zip codes with a regular expression. All valid zip codes
+    are put in the newly created column called "Valid Zip". Any invalid zip code will 
+    not be transferred and will require manual resolution. The explicit lines needed
+    to correct the invalid zip codes is output as well.
+    '''
+
+    def parse_zip(s):
+        s = str(s).strip()
+        """
+        Any of the below patterns will be parsed as valid zip codes
+        https://stackoverflow.com/questions/2577236/regex-for-zip-code
+        12345
+        12345-6789
+        12345 1234
+        123451234
+        """
+        pattern = '''
+         ^\d{5}(?:[-\s]?\d{4})?$
+        '''
+        matcher = re.compile(pattern, re.VERBOSE)
+        matches = matcher.match(s)
+        if matches:
+            return (matches.group(0))
+        else:
+            return np.nan
+
+    # Data Cleaning Function data cleaner loc statement cleaning zip code corrector
+    def data_cleaner(df, df_name, messy_column_name, new_column, use_custom_array=False,custom_array=False):
+        if use_custom_array:
+            array = custom_array
+        else:
+            array = df[messy_column_name].unique()
+
+        for i in array:
+            print(df_name + '.loc[' + df_name + '[\'' + messy_column_name + '\']==\'' + str(
+                i) + '\',\'' + new_column + '\'] = \'\'')
+
+    df['Valid Zip'] = df[df[zip_column].notnull()][zip_column].apply(parse_zip)
+    custom_array = df[(df[zip_column].notnull())&(df['Valid Zip'].isnull())][zip_column].unique()
+    data_cleaner(df,df_name,zip_column,'Valid Zip',True,custom_array)
 
 def import_directory(path):
     import glob
@@ -586,6 +653,28 @@ def mark_gaps(df):
     return df
 
 
+def sort_consolidated_values(consolidated_values):
+    consolidated_values = str(consolidated_values)
+    if(consolidated_values == 'nan'):
+        return np.nan
+    else:
+        sorted_values = ';'.join(sorted(consolidated_values.split(';'),key=str.lower))
+        return sorted_values
+
+def get_number_of_values(all_work_categories):
+    all_work_categories = str(all_work_categories)
+    num_work_categories = 0
+    for char in all_work_categories:
+        if char == ';':
+            num_work_categories += 1
+    if(all_work_categories=='nan'):
+        return 0
+    elif(num_work_categories == 0):
+        return 1
+    else:
+        # plus 1 because semicolons offset the count by 1
+        return num_work_categories+1
+
 # Get the unique strings within a delimited semi colon separated string
 def get_unique(string):
     string = str(string)
@@ -618,6 +707,13 @@ def consolidate_values(consolidate_col, primary_key, df, get_unique_values=True,
     df[created_column_name] = df[created_column_name].astype(str).apply(lambda x: x.replace(';nan', ''))
     df.loc[df[created_column_name] == 'nan', created_column_name] = np.nan
 
+    # Sorting values
+    df[created_column_name] = df[created_column_name].apply(sort_consolidated_values)
+
+    # Getting Number of Values
+    number_of_values = 'Number of ' + consolidate_col + 's'
+    df[number_of_values] = df[created_column_name].apply(get_number_of_values)
+
     if get_unique_values == True:
         unique_column_name = 'All Unique ' + consolidate_col + 's'
 
@@ -625,6 +721,7 @@ def consolidate_values(consolidate_col, primary_key, df, get_unique_values=True,
         df[unique_column_name].replace('nan', np.nan, inplace=True)
         # Removing the created column which is arbitrary with unique option passed
         df.drop([created_column_name],axis=1,inplace=True)
+        df[number_of_values] = df[unique_column_name].apply(get_number_of_values)
 
     return df
 
