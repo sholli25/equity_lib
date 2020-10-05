@@ -763,57 +763,50 @@ def naics_to_nigp(master, path):
     master = master.merge(crosswalk, on='NAICS', how='left')
     return master
 
+def nigp_to_work_category(master,path='../data/1.0-ob-GSPC-NIGP-Conversion-Lookup.xlsx',os_name='Other Services',ane_name='Architecture & Engineering'):
+    '''
+    Convert a cleaned NIGP 5 and NIGP 3 column in an existing dataframe to work category based on
+    a lookup table passed in the optional path parameter. Attempts to convert 5 digit NIGP when possible,
+    but will default to 3 digit if a match does not exist in the lookup table.
+    '''
+    original_size = len(master)
 
-# Convert NIGP to Work Category
-# This function requires the master frame to have an NIGP 3 and NIGP 5 column
-def nigp_to_work_category(master, path):
-    nigp = pd.read_excel(path)
-    # Making decisions as to how to classify certain codes
-    nigp.loc[nigp['Work Category'] == 'Non-Commercial Activity', 'Work Category'] = 'Goods & Supplies'
-    nigp.loc[nigp['Work Category'] == 'Non-Commerical Transactions', 'Work Category'] = 'Other Services'
-    nigp.loc[nigp['Work Category'] == 'Non-Professional Services', 'Work Category'] = 'Other Services'
+    nigp = pd.read_excel(path,converters={"Commodity Code":str})
 
-    # Fixing NIGP Codes so that they can merge
-    def fix_nigp_3(string):
-        string = str(string)
-        if len(string) == 1:
-            return '00' + string
-        elif len(string) == 2:
-            return '0' + string
-        else:
-            return string
+    nigp.loc[nigp['Industry Classification']=='Non-Professional Services','Industry Classification'] = os_name
+    nigp.loc[nigp['Industry Classification']=='Construction Related Professional Services','Industry Classification'] = ane_name
 
-    def fix_nigp_5(string):
-        string = str(string)
-        if len(string) == 4:
-            return '0' + string
-        elif len(string) == 3:
-            return '00' + string
-        elif len(string) == 2:
-            return '000' + string
-        else:
-            return string
+    # If the last two digits of the code are something other than '00', it is a five digit code
+    nigp_5 = (nigp[nigp['Commodity Code'].apply(lambda x: x[3:5])!='00']
+              .dropna(subset=['Industry Classification'])
+              .drop_duplicates(subset=['Commodity Code'])
+              .rename(columns={"Commodity Code":'NIGP 5','Commodity Description':'Commodity Description 5','Industry Classification':'NIGP 5 Category'}))
 
-    nigp['NIGP 3'] = nigp['NIGP 3'].apply(fix_nigp_3)
-    nigp['NIGP 5'] = nigp['NIGP 5'].apply(fix_nigp_5)
+    # If the last two digits of the code are '00', it is a 3 digit code
+    nigp_3 = nigp[nigp['Commodity Code'].apply(lambda x: x[3:5])=='00'].copy()
 
-    nigp_3 = nigp[['NIGP 3', 'Commodity Description', 'Work Category']].copy()
-    nigp_5 = nigp[['NIGP 5', 'Commodity Description', 'Work Category']].copy()
+    nigp_3['Commodity Code'] = nigp_3['Commodity Code'].apply(lambda x: str(x)[:3])
 
-    nigp_3.rename(columns={'Commodity Description': 'Commodity Description 3', 'Work Category': 'Work Category 3'},
-                  inplace=True)
-    nigp_5.rename(columns={'Commodity Description': 'Commodity Description 5', 'Work Category': 'Work Category 5'},
-                  inplace=True)
+    nigp_3 = (nigp_3
+              .dropna(subset=['Industry Classification'])
+              .drop_duplicates(subset=['Commodity Code'])
+              .rename(columns={"Commodity Code":'NIGP 3','Commodity Description':'Commodity Description 3','Industry Classification':'NIGP 3 Category'}))
 
-    master = master.merge(nigp_3, on='NIGP 3', how='left')
-    master = master.merge(nigp_5, on='NIGP 5', how='left')
+    master = master.merge(nigp_5,on='NIGP 5',how='left')
+    master = master.merge(nigp_3,on='NIGP 3',how='left')
 
-    # Filling work final work category in order of most significant matches to least
-    master['Final Work Category'] = master['Work Category 5']
-    master['Final Work Category'].fillna(master['Work Category 3'], inplace=True)
+    assert len(master) == original_size
+
+    master['NIGP Item Work Category'] = master['NIGP 5 Category']
+    master.loc[(master['NIGP 5 Category'].isnull())&(master['NIGP 3 Category'].notnull()),'NIGP Item Work Category'] = master['NIGP 3 Category']
+
+    print('The following NIGP 5 did not merge: ')
+    print(master[(master['NIGP Item Work Category'].isnull())&(master['NIGP 5'].notnull())]['NIGP 5'].value_counts())
+
+    print('The following NIGP 3 did not merge: ')
+    print(master[(master['NIGP Item Work Category'].isnull())&(master['NIGP 3'].notnull())]['NIGP 3'].value_counts())
 
     return master
-
 
 # Creating Unique Arrays for the Relevant Market Regions
 Main_County = {
