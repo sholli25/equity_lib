@@ -688,8 +688,11 @@ def get_unique(string):
             unique_list.append(x)
     # print list
     final_string = ';'.join(unique_list)
-    return final_string
 
+    if(final_string=='nan'):
+        return np.nan
+    else:
+        return final_string
 
 # Converting Force forcing multiple rows to a single row and preserving unique data collapse condense consolidate
 def consolidate_values(consolidate_col, primary_key, df, get_unique_values=True, drop_dup=False):
@@ -1232,3 +1235,21 @@ def pivot_sum(df, index_col, values_col):
     pd.set_option('display.float_format', lambda x: '%.2f' % x)
     return pd.DataFrame(pd.pivot_table(df, index=index_col, values=values_col,
                                        aggfunc=np.sum).to_records()).sort_values(by=values_col, ascending=False)
+
+def add_to_existing_column(df,new_data_col,old_data_col):
+    '''
+    Pass the new column and old column, will transform
+    the data frame so old data is preserved and the combined
+    data is unique. Returns passed dataframe
+    '''
+    # If nothing in field already, simply add new data
+    df.loc[df[old_data_col].isnull(),old_data_col] = df[new_data_col]
+
+    # If something in field, combine new and old data separated by semicolon
+    df.loc[df[old_data_col].notnull(),old_data_col] =  df[old_data_col] + ';' + df[new_data_col]
+
+    df[old_data_col] = df[old_data_col].apply(get_unique)
+
+    df = df.drop([new_data_col],axis=1)
+
+    return df
