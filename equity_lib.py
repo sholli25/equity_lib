@@ -1229,22 +1229,34 @@ def pivot_sum(df, index_col, values_col):
     return pd.DataFrame(pd.pivot_table(df, index=index_col, values=values_col,
                                        aggfunc=np.sum).to_records()).sort_values(by=values_col, ascending=False)
 
+
 def add_to_existing_column(df,new_data_col,old_data_col):
     '''
     Pass the new column and old column, will transform
     the data frame so old data is preserved and the combined
     data is unique. Returns passed dataframe
     '''
-    # If nothing in field already, simply add new data
-    df.loc[df[old_data_col].isnull(),old_data_col] = df[new_data_col]
+    JOINED_COLUMN_NAME = 'Joined ' + old_data_col
+    NUMBER_OF_VALUES = len(df[(df[old_data_col].notnull())&(df[new_data_col].isnull())])
+    NUMBER_OF_NEW_VALUES = len(df[(df[new_data_col].notnull())&(df[old_data_col].isnull())])
+    NUMBER_OF_NEW_VALUES = NUMBER_OF_NEW_VALUES + len(df[(df[old_data_col].notnull())&(df[new_data_col].notnull())])
+    print("NUMBER_OF_VALUES %s" % NUMBER_OF_VALUES)
+    print("NUMBER_OF_NEW_VALUES: %s" % NUMBER_OF_NEW_VALUES)
 
     # If something in field, combine new and old data separated by semicolon
-    df.loc[df[old_data_col].notnull(),old_data_col] =  df[old_data_col] + ';' + df[new_data_col]
+    df.loc[(df[old_data_col].notnull())&(df[new_data_col].notnull()),JOINED_COLUMN_NAME] =  df[old_data_col].astype(str) + ';' + df[new_data_col].astype(str)
+    # If nothing in field already, simply add new data
+    df.loc[(df[old_data_col].isnull())&(df[new_data_col].notnull()),JOINED_COLUMN_NAME] = df[new_data_col].astype(str)
+    # If nothing in new field, simply preserve old data
+    df.loc[(df[old_data_col].notnull())&(df[new_data_col].isnull()),JOINED_COLUMN_NAME] = df[old_data_col].astype(str)
 
-    df[old_data_col] = df[old_data_col].apply(get_unique)
+    NUMBER_OF_VALUES_AFTER_CAT = len(df[df[JOINED_COLUMN_NAME].notnull()])
 
-    df = df.drop([new_data_col],axis=1)
-
+    print("NUMBER_OF_VALUES_AFTER_CAT %s" % NUMBER_OF_VALUES_AFTER_CAT)
+    df[JOINED_COLUMN_NAME] = df[JOINED_COLUMN_NAME].apply(get_unique)
+    assert NUMBER_OF_VALUES+NUMBER_OF_NEW_VALUES == NUMBER_OF_VALUES_AFTER_CAT
+    df[old_data_col] = df[JOINED_COLUMN_NAME]
+    df = df.drop([JOINED_COLUMN_NAME],axis=1)
     return df
 
 import pandas as pd
